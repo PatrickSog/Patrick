@@ -1,6 +1,7 @@
 ## packages
-require('naturalsort', 'gdalUtils')
-library(rgdal)
+library('naturalsort')
+library('gdalUtils')
+library('rgdal')
 
 ## paths
 LandklifDir <- "D:/Patrick/Documents/Dokumente/Landklif/Landklif1/"
@@ -47,7 +48,7 @@ for (i in 1:length(ipath)) {        # full path of output
 ## Add Raster names to spdf
 final60$RasterName <- NA
 final60$RasterName[c(1:length(ofile))] <- ofile
-final60$RasterName
+final60$RasterName # optional control
 
 # optional control
 ipath
