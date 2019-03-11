@@ -1,12 +1,14 @@
 ## packages
 require('naturalsort', 'gdalUtils')
+library(rgdal)
 
 ## paths
 LandklifDir <- "D:/Patrick/Documents/Dokumente/Landklif/Landklif1/"
 tmpdir <- "D:/Patrick/Zeug"
 
 ## crs
-mycrsEPSG <- as.character("EPSG:31468")
+mycrsEPSG <- "EPSG:31468"
+
 
 #################################
 
@@ -24,6 +26,12 @@ allfilesCK <- lapply(Pdirlist, function(x) list.files(x, pattern="jpg$", full.na
 allfilesCK <- allfilesCK[naturalorder(allfilesCK)]
 allfilesCK # natural ordered list of files in directories
 
+
+#################################
+
+## read shapefiles of quadrants into spdf
+final60 <- readOGR(paste0(LandklifDir, "00_QuadrantSelection/finalVersion/QuadrantSelection/Shapefiles/Final60Quadrants.shp"))
+
 #################################
 
 ## Mosaic rasters
@@ -33,10 +41,15 @@ ipath <- paste0(Pdir, "/")          # path should end with '/'
 out.res <- as.character(c(0.2,0.2)) # set output resolution
 ofile <- list()
 for (i in 1:length(ipath)) {        # full path of output
-  filelist[[i]][2] <- paste0(ipath[i], "P", i, "_merge.jpg")
-  }
+  ofile[i] <- paste0(ipath[i], "P", i, "_merge_", final60$QUADRANT[i], ".jpg")
+}
 
-# optional control on input
+## Add Raster names to spdf
+final60$RasterName <- NA
+final60$RasterName[c(1:length(ofile))] <- ofile
+final60$RasterName
+
+# optional control
 ipath
 ofile
 out.res
@@ -44,7 +57,7 @@ out.res
 mosaicPS <- function(ipath, ofile, out.res) {
   
   #-------------------------------------------------------------------------------------------------------#
-  # find valid gdal instalation
+  # find valid gdal installation
   #-------------------------------------------------------------------------------------------------------#
   
   # base requirements to rasterize files with GDAL
