@@ -4,34 +4,36 @@ library('gdalUtils')
 library('rgdal')
 
 ## paths
-LandklifDir <- "D:/Patrick/Documents/Dokumente/Landklif/Landklif1/"
+AirborneDir <- "M:/Landklif/02_Data/02_AirborneData/DOP-RGB-20"
+QuadrantDir <- "M:/Landklif/02_Data/00_QuadrantSelection/finalVersion/QuadrantSelection/Shapefiles"
 tmpdir <- "D:/Patrick/Zeug"
 
 ## crs
-mycrsEPSG <- "EPSG:31468"
-
+mycrsEPSG_GK <- "EPSG:31468"
+mycrsEPSG_UTM <- "EPSG:25832"
 
 #################################
 
 ## read list of rasters
-dirlist <- list.dirs(LandklifDir)
-Pdirlist <- grep("*Landklif1/P", dirlist, value = T)
+dirlist <- list.dirs(AirborneDir)
+Pdirlist <- grep(paste0("/P"), dirlist, value = T)
 # Optonal control
 #Pdirlist
 Pdir <- Pdirlist[naturalorder(Pdirlist)]
 # Optinal control
-Pdir # natural order of P-directories
+#Pdir # natural order of P-directories
 
-## read files in each directory
+## read files in each directory into a list
 allfilesCK <- lapply(Pdirlist, function(x) list.files(x, pattern="jpg$", full.names = T))
 allfilesCK <- allfilesCK[naturalorder(allfilesCK)]
-allfilesCK # natural ordered list of files in directories
+# Optional control
+#allfilesCK # natural ordered list of files in directories
 
 
 #################################
 
 ## read shapefiles of quadrants into spdf
-final60 <- readOGR(paste0(LandklifDir, "00_QuadrantSelection/finalVersion/QuadrantSelection/Shapefiles/Final60Quadrants.shp"))
+final60 <- readOGR(paste0(QuadrantDir, "/Final60Quadrants.shp"))
 
 #################################
 
@@ -85,7 +87,7 @@ mosaicPS <- function(ipath, ofile, out.res) {
   #-------------------------------------------------------------------------------------------------------#
   
   rasterFun <- list.files(gdalPath)[grep('translate', list.files(gdalPath))] # find "mosaic" function
-  basePar <- paste0('-ot Byte -of JPEG -a_srs ', mycrsEPSG, ' -tr ', out.res[1], ' ', out.res[2])
+  basePar <- paste0('-ot Byte -of JPEG -a_srs ', mycrsEPSG_UTM, ' -tr ', out.res[1], ' ', out.res[2])
   gdalCall <- paste0(gdalPath, rasterFun, ' ', basePar, ' ', vrt, ' ', ofile)
   #gdalCall
   lapply(gdalCall, function(x) system(x))
@@ -94,4 +96,4 @@ mosaicPS <- function(ipath, ofile, out.res) {
 }
 mosaicPS(ipath = ipath, ofile = ofile, out.res = out.res)
 
-writeOGR(final60, dsn = paste0(LandklifDir, "00_QuadrantSelection/finalVersion/Final60Quadrants.shp"), layer = "Final60Quadrants", driver = 'ESRI Shapefile')
+writeOGR(final60, dsn = paste0(QuadrantDir, "/Final60QuadrantsRN.shp"), layer = "Final60QuadrantsRN", driver = 'ESRI Shapefile')
