@@ -47,7 +47,7 @@ for (i in 1:length(ipath)) {        # full path of output
 
 ## Add Raster names to spdf
 final60$RasterName <- NA
-final60$RasterName[c(1:length(ofile))] <- ofile
+final60$RasterName[c(1:length(ofile))] <- unlist(ofile)
 final60$RasterName # optional control
 
 # optional control
@@ -94,3 +94,4 @@ mosaicPS <- function(ipath, ofile, out.res) {
 }
 mosaicPS(ipath = ipath, ofile = ofile, out.res = out.res)
 
+writeOGR(final60, dsn = paste0(LandklifDir, "00_QuadrantSelection/finalVersion/Final60Quadrants.shp"), layer = "Final60Quadrants", driver = 'ESRI Shapefile')
