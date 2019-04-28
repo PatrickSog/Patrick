@@ -1,11 +1,21 @@
 # Combined code of RasterList.R & otbSegmentation.R
 
 ## packages
-install.packages(c('naturalsort', 'gdalUtils', 'rgdal', 'raster'))
+install.packages(c('naturalsort', 'gdalUtils', 'rgdal', 'raster', 'RStoolbox', 'MASS'))
 library('naturalsort')
 library('gdalUtils')
 library('rgdal')
 library('raster')
+library('RStoolbox')
+library('foreach')
+library('doParallel')
+#library('parallel') Package only needed for mclapply, which is not too useful on windows.
+#library('MASS') Similar as above
+
+## check out processing power to use parallel processing
+
+numCores <- detectCores()
+numCores
 
 ## paths
 
@@ -19,13 +29,15 @@ oDir <- "C:/DeleteMe" # output directory
 # path to gdal
   #gdal_setInstallation() # set gdal installation options (not always needed)
   gdalPath <- getOption("gdalUtils_gdalPath")[[1]]$path # find gdal installation  # Does not always work, if complications hard code gdalPath as string
+  gdalPath # optional control
   # hard coding gdalPath (needed if preferred gdal is on another drive)
-  #gdalPath <- "C:/OSGeo4W64/bin" # hard code gdalPath (comment this command if getOption(...) works for you)
+  gdalPath <- "C:/OSGeo4W64/bin/" # hard code gdalPath with "/" in the end! (comment this command if getOption(...) works for you)
 
 # For Step 2:
 otbPath <- "C:/OTB-6.6.0-Win64/OTB-6.6.0-Win64/bin" # path to Orfeo Toolbox
 otbSeg <- list.files(otbPath, pattern = "otbcli_Segmentation") # otb segmentation algorithm
-segfileNr <- c(1:3) # Select fileNr for segmentation
+segfileNr <- c(1:2) # Select fileNr for segmentation
+
 
 ## crs
 mycrsEPSG_GK <- "EPSG:31468"
@@ -88,7 +100,7 @@ mosaicPS <- function(ipath, ofile, out.res) {
   gdalCall <- paste0(gdalPath, rasterFun, ' ', vrt, ' ', file.path(ipath, '*.jpg'))
   # optional control:
   #gdalCall
-  lapply(gdalCall, function(x) system(x))
+  lapply(gdalCall, function(x) system(x)) # mclapply might be an idea here for non-windows machines...
   
   #-------------------------------------------------------------------------------------------------------#
   # make mosaic
@@ -98,37 +110,64 @@ mosaicPS <- function(ipath, ofile, out.res) {
   basePar <- paste0('-ot Byte -of JPEG -a_srs ', mycrsEPSG_UTM, ' -tr ', out.res[1], ' ', out.res[2])
   gdalCall <- paste0(gdalPath, rasterFun, ' ', basePar, ' ', vrt, ' ', ofile)
   #gdalCall
-  lapply(gdalCall, function(x) system(x))
+  lapply(gdalCall, function(x) system(x)) # again, mclapply might be an idea here for non-windows machines...
   
   rm(vrt) # clean up
 }
-gdalPath # optional control
+#gdalPath # optional control
 mosaicPS(ipath = ipath, ofile = ofile, out.res = out.res)
 
-writeOGR(final60, dsn = paste0(oDir, "/Final60QuadrantsRN.shp"), layer = "Final60QuadrantsRN", driver = 'ESRI Shapefile')
+writeOGR(final60, dsn = paste0(oDir, "/Final60QuadrantsRN.shp"), layer = "Final60QuadrantsRN", driver = 'ESRI Shapefile', overwrite_layer = T)
 
 ##########################################################################
 # End of data pre-processing
 ##########################################################################
 
+         
+         
 ## Step 2: Classification
 
 ## 1. Segmentation
-# -> Let's use the Orfeo Toolbox for segmenting because it is fast
+# -> Let's use the Orfeo Toolbox for segmenting
 
-# set i/o
+# set input
 ifile <- list()
 for (i in 1:length(segfileNr)) {
-  ifile[i] <- ofile[segfileNr[i]]
+  ifile[i] <- final60$RasterName[segfileNr[i]]
 }
 ifile # optional control
 
+ifileR <- list()
+for (i in 1:length(ifile)) {
+  ifileR[[i]] <- stack(ifile[[i]])
+}
+ifileR # optonal control
+
+
+#################################
+
+## Optional:
+# set segmentation boundaries and mask raster to save time
+
+#ifileR # optional control
+lapply(ifileR, function(x) extent(x)) # show extend
+e <- extent(4489000, 4489500, 5575000, 5575500) # set extend of AOI
+ifileN <- paste0(oDir, "/", "ifilecrop.grd") # set filename
+ifilecrop <- crop(ifileR[[2]], e, filename = ifileN, overwrite = T) # crop, in this case only entry 2 of the list
+#plot(ifilecrop) # optional control
+
+#################################
+
+
+## Prepare command:
+# make list of files to be segmented
 segfile <- list()
 for (i in 1:length(ifile)) {
   segfile[i] <- gsub("merge", "seg", unlist(ifile[i]))
   segfile[i] <- gsub("jpg", "sqlite", unlist(segfile[i]))
 }
 segfile # optinal control
+segfile <- segfile[[2]]
 
 # set mode
 mode <- "vector" #otb cannot handle large input files in raster mode
@@ -138,25 +177,62 @@ segfun <- "meanshift"
 
 # formulate call
 otbCall <- paste0(otbPath, '/', otbSeg, 
-                  ' -in ', ifile, 
+                  ' -in ', ifileN, 
                   ' -mode ', mode, ' -mode.', mode, '.out ', 
                   segfile, ' uint16', 
                   ' -filter ', segfun)
 
-otbCall # optional control
+#otbCall # optional control
 lapply(otbCall, function(x) system(x))
 
-## 2. NDVI calculation
+ifileSeg <- readOGR(unlist(segfile))
+plot(ifileSeg) # optional control <- Nice to look at ;)
+
+## End of segmentation ##
+
+
+## 2. pNDVI calculation
+
 PseudoNDVI <- function(G, R) {
   (G - R)/(G + R)
 }
-segfile
-pNDVI <- brick(unlist(ifile[1]))
-pNDVI <- PseudoNDVI(pNDVI[[2]], pNDVI[[3]])
+pNDVI <- PseudoNDVI(ifilecrop[[2]], ifilecrop[[1]])
+plot(pNDVI)
+
 
 ## 3. Classification
+
+ifileSeg$C_ID <- NA
+
+registerDoParallel(numCores-1) # parallel processing with all but 1 cores available...
+r <- foreach (i=1:length(ifileSeg)) %dopar%{
+  tempmask <- raster::mask(pNDVI, ifileSeg[i,])
+  tempC_ID <- names(which.max(table(raster::values(tempmask))))
+  if (tempC_ID <= 0) {
+    tempC_ID = 3
+  } else {
+    if (tempC_ID <= 0.2) {
+      tempC_ID = 2
+    } else {
+      tempC_ID =1
+    }
+  }
+}
+stopImplicitCluster() # don't forget to clean up the cores after processing.
+
+ifileSeg$C_ID <- unlist(r)
+head(ifileSeg) # optional control
 
 
 ## 4. Output
 
+writeOGR(ifileSeg, gsub("sqlite", "shp", unlist(segfile)), "Classified Segments", driver = "ESRI Shapefile", overwrite_layer = T)
 
+
+plot(ifileSeg[which(ifileSeg$C_ID == 3),], col = "greenyellow")
+plot(ifileSeg[which(ifileSeg$C_ID == 2),], col = "yellow3", add = T)
+plot(ifileSeg[which(ifileSeg$C_ID == 1),], col = "green4", add = T)
+
+##########################################################################
+# End of script
+##########################################################################
