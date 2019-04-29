@@ -1,4 +1,7 @@
-# Combined code of RasterList.R & otbSegmentation.R
+# Combined code to merge large raster objects, segment them and classify segments based on pseudo-NDVI
+# Author: Patrick Sogno
+# Latest version on github: https://github.com/PatrickSog/Patrick/blob/Landklif/completeRLSegClass.R
+# Proper commenting will follow...
 
 ## packages
 install.packages(c('naturalsort', 'gdalUtils', 'rgdal', 'raster', 'RStoolbox', 'MASS'))
