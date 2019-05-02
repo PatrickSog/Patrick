@@ -1,7 +1,7 @@
 # Combined code to merge large raster objects, segment them and classify segments based on pseudo-NDVI
 # Author: Patrick Sogno
 # E-mail address: patrick.sogno@stud-mail.uni-wuerzburg.de
-# Latest version on github: https://github.com/PatrickSog/Patrick/blob/Landklif/completeRLSegClass.R
+# Latest version on github: https://github.com/PatrickSog/Patrick/blob/Landklif/Landklif_MergeSegmentClassify.R
 # Written on Windows (8.1 & 10) machines.
 # RStudio version: 1.1.456
 # R version: 3.5.1
