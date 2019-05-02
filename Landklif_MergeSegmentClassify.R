@@ -1,7 +1,29 @@
 # Combined code to merge large raster objects, segment them and classify segments based on pseudo-NDVI
 # Author: Patrick Sogno
+# E-mail address: patrick.sogno@stud-mail.uni-wuerzburg.de
 # Latest version on github: https://github.com/PatrickSog/Patrick/blob/Landklif/completeRLSegClass.R
-# Proper commenting will follow...
+# Written on Windows (8.1 & 10) machines.
+# RStudio version: 1.1.456
+# R version: 3.5.1
+
+#----------------------------------------------#
+
+# Please note that the merging is done with gdal, and the segmentation is done with otb, both need to be installed prior to running this code.
+# Both can be found via this link: https://live.osgeo.org/en/overview/overview.html
+
+#----------------------------------------------#
+# Background: As part of the Landklif project     ---> (https://www.biozentrum.uni-wuerzburg.de/en/zoo3/forschung/verbundprojekte/landklif/)
+# a number of airborne images had to be merged.
+# Segmenting and classifying the imagery was
+# just for my personal fun and for trying out
+# neat little tricks like system calls from R
+# and parallel processing.
+# Hopefully you get some use out of the code,
+# if you have any suggestions or found an error
+# just contact me via e-mail! :)
+#----------------------------------------------#
+
+
 
 ## packages
 install.packages(c('naturalsort', 'gdalUtils', 'rgdal', 'raster', 'RStoolbox', 'MASS'))
